@@ -1,3 +1,4 @@
+import { inferSubtitleTracks, mediaSource } from '../lib/media'
 import type { HeroineId, RouteId, StatId, StoryScene } from './types'
 
 function stage(
@@ -9,7 +10,18 @@ function stage(
   haze: string,
   ...media: string[]
 ) {
-  return { label, motif, quote, palette, glow, haze, media }
+  const sources = media.map((source) => mediaSource(source))
+
+  return {
+    label,
+    motif,
+    quote,
+    palette,
+    glow,
+    haze,
+    media: sources,
+    subtitles: inferSubtitleTracks(sources),
+  }
 }
 
 export const statLabels: Record<StatId, string> = {

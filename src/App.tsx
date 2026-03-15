@@ -3,6 +3,7 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
   type CSSProperties,
 } from 'react'
@@ -34,6 +35,7 @@ import {
   persistState,
   saveIntoSlot,
 } from './lib/game-state'
+import { getSceneSoundtrack, pickPlayableSource, soundEffects } from './lib/media'
 import type {
   HeroineId,
   PersistedState,
@@ -65,9 +67,11 @@ function App() {
   )
   const [previewRoute, setPreviewRoute] = useState<HeroineId>('xiaoqian')
   const [toast, setToast] = useState<string | null>(null)
+  const bgmRef = useRef<HTMLAudioElement | null>(null)
 
   const snapshot = state.active
   const scene = snapshot ? storyScenes[snapshot.sceneId] : null
+  const soundtrack = scene ? getSceneSoundtrack(scene) : null
   const currentRoute = scene?.route ?? 'common'
   const accent = routeAccent[currentRoute]
   const history = useDeferredValue(snapshot?.history ?? [])
@@ -92,6 +96,63 @@ function App() {
     return () => window.clearTimeout(timeoutId)
   }, [toast])
 
+  useEffect(() => {
+    const bgm = bgmRef.current
+
+    if (!bgm) {
+      return
+    }
+
+    if (!soundtrack) {
+      bgm.pause()
+      bgm.removeAttribute('src')
+      bgm.dataset.trackSrc = ''
+      return
+    }
+
+    const preferredSource = pickPlayableSource(soundtrack.sources, bgm)
+
+    if (!preferredSource) {
+      bgm.pause()
+      return
+    }
+
+    if (bgm.dataset.trackSrc !== preferredSource.src) {
+      bgm.pause()
+      bgm.src = preferredSource.src
+      bgm.dataset.trackSrc = preferredSource.src
+      bgm.load()
+    }
+
+    bgm.loop = soundtrack.loop ?? true
+    bgm.volume = state.settings.musicVolume
+
+    if (state.settings.autoplay) {
+      void bgm.play().catch(() => undefined)
+      return
+    }
+
+    bgm.pause()
+  }, [soundtrack, state.settings.autoplay, state.settings.musicVolume])
+
+  function playEffect(effectName: keyof typeof soundEffects) {
+    if (state.settings.sfxVolume <= 0) {
+      return
+    }
+
+    const cue = soundEffects[effectName]
+    const preferredSource = pickPlayableSource(cue.sources)
+
+    if (!preferredSource) {
+      return
+    }
+
+    const effect = new Audio(preferredSource.src)
+    effect.volume = state.settings.sfxVolume
+    effect.preload = 'auto'
+    void effect.play().catch(() => undefined)
+  }
+
   function startFresh(sceneId = routeEntryScene.common) {
     startTransition(() => {
       setState((current) => ({
@@ -110,6 +171,7 @@ function App() {
 
   function continueRun() {
     if (!state.active) {
+      playEffect('error')
       setToast('当前没有自动存档，先从序章开始一轮吧。')
       return
     }
@@ -129,6 +191,7 @@ function App() {
 
   function quickStartRoute(route: HeroineId | 'hidden') {
     if (route === 'hidden' && !hiddenUnlocked) {
+      playEffect('error')
       setToast('至少拿到 2 个明亮结局后，回梦线才会开启。')
       return
     }
@@ -138,10 +201,12 @@ function App() {
 
   function saveSlot(slotId: 1 | 2 | 3) {
     if (!snapshot || !scene) {
+      playEffect('error')
       setToast('当前没有可写入的进度。')
       return
     }
 
+    playEffect('save')
     setState((current) => ({
       ...current,
       saves: saveIntoSlot(current.saves, slotId, snapshot),
@@ -151,10 +216,12 @@ function App() {
 
   function loadSlot(slot: SaveSlot) {
     if (!slot.snapshot) {
+      playEffect('error')
       setToast('这个签匣还是空的。')
       return
     }
 
+    playEffect('load')
     startTransition(() => {
       setState((current) => ({
         ...current,
@@ -171,6 +238,7 @@ function App() {
   }
 
   function resetProgress() {
+    playEffect('error')
     startTransition(() => {
       setState(createPersistedState())
       setShowTitle(true)
@@ -185,10 +253,12 @@ function App() {
     }
 
     if (!isChoiceUnlocked(choice, snapshot, state.profile)) {
+      playEffect('error')
       setToast(describeChoiceLock(choice, snapshot, state.profile))
       return
     }
 
+    playEffect('choice')
     const next = advanceSnapshot(snapshot, choice)
     const nextScene = storyScenes[next.sceneId]
 
@@ -204,6 +274,7 @@ function App() {
     })
 
     if (nextScene.isEnding && nextScene.ending) {
+      playEffect('unlock')
       setToast(`已收录结局：${nextScene.ending.name}`)
     }
   }
@@ -261,6 +332,7 @@ function App() {
         <div className="layer-blur layer-blur-b" />
         <div className="layer-grid" />
       </div>
+      <audio ref={bgmRef} aria-hidden="true" className="bgm-player" />
 
       <header className="topbar">
         <div className="brand-block">
@@ -532,6 +604,36 @@ function App() {
                 ))}
               </div>
             </section>
+
+            <section className="status-panel">
+              <div className="section-heading compact">
+                <div>
+                  <p className="eyebrow">媒体轨道</p>
+                  <h3>视频 / 音频 / 字幕</h3>
+                </div>
+                <span>{soundtrack?.title ?? '未配置 BGM'}</span>
+              </div>
+              <div className="media-stack">
+                <div className="media-row">
+                  <span>当前 BGM</span>
+                  <strong>{soundtrack?.title ?? '未配置'}</strong>
+                </div>
+                <div className="media-row">
+                  <span>视频源</span>
+                  <strong>{scene.stage.media.length > 0 ? '已配置路径' : '未配置'}</strong>
+                </div>
+                <div className="media-row">
+                  <span>字幕轨</span>
+                  <strong>
+                    {scene.stage.subtitles.length > 0
+                      ? state.settings.subtitles
+                        ? 'VTT 已启用'
+                        : 'VTT 已配置路径'
+                      : '未配置'}
+                  </strong>
+                </div>
+              </div>
+            </section>
           </aside>
 
           <section className="choice-panel">
@@ -721,6 +823,44 @@ function App() {
                       }
                     />
                   </label>
+                  <label className="setting-card">
+                    <span>BGM 音量</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={state.settings.musicVolume}
+                      onChange={(event) =>
+                        setState((current) => ({
+                          ...current,
+                          settings: {
+                            ...current.settings,
+                            musicVolume: Number(event.target.value),
+                          },
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="setting-card">
+                    <span>SFX 音量</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={state.settings.sfxVolume}
+                      onChange={(event) =>
+                        setState((current) => ({
+                          ...current,
+                          settings: {
+                            ...current.settings,
+                            sfxVolume: Number(event.target.value),
+                          },
+                        }))
+                      }
+                    />
+                  </label>
                   <label className="setting-card toggle">
                     <span>自动播放</span>
                     <input
@@ -732,6 +872,22 @@ function App() {
                           settings: {
                             ...current.settings,
                             autoplay: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="setting-card toggle">
+                    <span>显示字幕</span>
+                    <input
+                      type="checkbox"
+                      checked={state.settings.subtitles}
+                      onChange={(event) =>
+                        setState((current) => ({
+                          ...current,
+                          settings: {
+                            ...current.settings,
+                            subtitles: event.target.checked,
                           },
                         }))
                       }

@@ -6,6 +6,24 @@ export type StatId = 'courage' | 'wit' | 'mercy' | 'spirit'
 
 export type EndingTone = 'radiant' | 'fracture' | 'secret'
 
+export type MediaSource = {
+  src: string
+  type?: string
+}
+
+export type SubtitleTrack = {
+  src: string
+  label: string
+  srclang: string
+  default?: boolean
+}
+
+export type SoundCue = {
+  title: string
+  loop?: boolean
+  sources: MediaSource[]
+}
+
 export type StagePreset = {
   label: string
   motif: string
@@ -13,7 +31,8 @@ export type StagePreset = {
   palette: string
   glow: string
   haze: string
-  media: string[]
+  media: MediaSource[]
+  subtitles: SubtitleTrack[]
 }
 
 export type ChoiceLock = {
@@ -80,7 +99,10 @@ export type SaveSlot = {
 
 export type Settings = {
   volume: number
+  musicVolume: number
+  sfxVolume: number
   autoplay: boolean
+  subtitles: boolean
   reduceMotion: boolean
   textScale: number
 }

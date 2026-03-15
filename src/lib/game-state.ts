@@ -18,7 +18,10 @@ const STORAGE_KEY = 'qiannv-requiem/state'
 
 const defaultSettings: Settings = {
   volume: 0.65,
+  musicVolume: 0.5,
+  sfxVolume: 0.7,
   autoplay: true,
+  subtitles: true,
   reduceMotion: false,
   textScale: 1,
 }
@@ -178,7 +181,18 @@ export function loadState(): PersistedState {
       saves: normalizeSaves(parsed.saves),
       settings: {
         volume: clamp(Number(parsed.settings?.volume ?? defaultSettings.volume), 0, 1),
+        musicVolume: clamp(
+          Number(parsed.settings?.musicVolume ?? defaultSettings.musicVolume),
+          0,
+          1,
+        ),
+        sfxVolume: clamp(
+          Number(parsed.settings?.sfxVolume ?? defaultSettings.sfxVolume),
+          0,
+          1,
+        ),
         autoplay: Boolean(parsed.settings?.autoplay ?? defaultSettings.autoplay),
+        subtitles: Boolean(parsed.settings?.subtitles ?? defaultSettings.subtitles),
         reduceMotion: Boolean(
           parsed.settings?.reduceMotion ?? defaultSettings.reduceMotion,
         ),

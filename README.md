@@ -10,6 +10,8 @@
 - 本地自动存档 + 3 格手动存档
 - 片库收录：结局、旧物、隐藏线解锁
 - 视频接入位：支持 `mp4` / `webm`
+- BGM / SFX：支持 `mp3` / `ogg`
+- 字幕轨：支持 `WebVTT (.vtt)`
 - 无正式视频时自动切换为氛围化舞台
 - 移动端优先竖屏体验，兼容桌面端
 - GitHub Pages 工作流已内置
@@ -52,18 +54,32 @@ src/
 
 ## 替换正式视频
 
-把视频放到 `public/media/...` 下即可，路径已经在 `src/story/content.ts` 中预留完成。
+把正式媒体按约定路径放到 `public/media/...` 下即可，路径已经在 `src/story/content.ts` 和 `src/lib/media.ts` 中预留完成。
 
 示例：
 
 ```text
 public/media/common/crossroads.mp4
+public/media/common/crossroads.zh-CN.vtt
 public/media/xiaoqian/rain-pavilion.mp4
+public/media/xiaoqian/rain-pavilion.zh-CN.vtt
 public/media/feili/tower-fire.mp4
 public/media/wange/lantern-market.mp4
 public/media/jianyue/bridge-docket.mp4
 public/media/hidden/rewind-room.mp4
+public/media/audio/bgm/common-prologue.mp3
+public/media/audio/bgm/xiaoqian-theme.mp3
+public/media/audio/bgm/xiaoqian-radiant.mp3
+public/media/audio/sfx/choice-confirm.mp3
+public/media/audio/sfx/save-scroll.mp3
 ```
+
+命名规则：
+
+- 视频：与场景 stem 同名，支持 `.mp4` / `.webm`
+- 字幕：和视频同目录同 stem，后缀固定为 `.zh-CN.vtt`
+- BGM：`public/media/audio/bgm/<route-or-scene-key>.mp3`
+- SFX：`public/media/audio/sfx/<effect-key>.mp3`
 
 ## GitHub Pages
 

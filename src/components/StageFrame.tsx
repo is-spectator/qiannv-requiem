@@ -11,6 +11,7 @@ export function StageFrame({ scene, settings }: StageFrameProps) {
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(scene.stage.media.length === 0)
   const [manualPlayback, setManualPlayback] = useState<boolean | null>(null)
+  const [captionText, setCaptionText] = useState('')
   const shouldPlay = manualPlayback ?? settings.autoplay
 
   useEffect(() => {
@@ -20,6 +21,50 @@ export function StageFrame({ scene, settings }: StageFrameProps) {
 
     videoRef.current.volume = settings.volume
   }, [settings.volume])
+
+  useEffect(() => {
+    const video = videoRef.current
+
+    if (!video || !ready) {
+      return
+    }
+
+    const textTrack = video.textTracks[0]
+
+    if (!textTrack) {
+      return
+    }
+
+    textTrack.mode = settings.subtitles ? 'hidden' : 'disabled'
+
+    const syncCaption = () => {
+      if (!settings.subtitles) {
+        setCaptionText('')
+        return
+      }
+
+      const cues = textTrack.activeCues
+
+      if (!cues || cues.length === 0) {
+        setCaptionText('')
+        return
+      }
+
+      const lines = Array.from(cues)
+        .map((cue) => ('text' in cue ? String(cue.text).trim() : ''))
+        .filter(Boolean)
+
+      setCaptionText(lines.join('\n'))
+    }
+
+    textTrack.addEventListener('cuechange', syncCaption)
+    const frameId = window.requestAnimationFrame(syncCaption)
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      textTrack.removeEventListener('cuechange', syncCaption)
+    }
+  }, [ready, scene.id, settings.subtitles])
 
   useEffect(() => {
     if (!videoRef.current || !ready || failed) {
@@ -55,16 +100,26 @@ export function StageFrame({ scene, settings }: StageFrameProps) {
             preload="auto"
             loop
             playsInline
-            autoPlay={settings.autoplay}
-            muted={false}
-            onLoadedData={() => setReady(true)}
-            onError={() => setFailed(true)}
-          >
-            {scene.stage.media.map((source) => (
-              <source key={source} src={source} />
-            ))}
-          </video>
-        ) : null}
+          autoPlay={settings.autoplay}
+          muted={false}
+          onLoadedData={() => setReady(true)}
+          onError={() => setFailed(true)}
+        >
+          {scene.stage.media.map((source) => (
+            <source key={source.src} src={source.src} type={source.type} />
+          ))}
+          {scene.stage.subtitles.map((track) => (
+            <track
+              key={track.src}
+              default={track.default}
+              kind="subtitles"
+              label={track.label}
+              src={track.src}
+              srcLang={track.srclang}
+            />
+          ))}
+        </video>
+      ) : null}
 
         <div className={`stage-fallback${failed ? ' is-visible' : ''}`}>
           <div className="stage-aura" />
@@ -104,6 +159,12 @@ export function StageFrame({ scene, settings }: StageFrameProps) {
           </div>
         </div>
       </div>
+
+      {settings.subtitles ? (
+        <div className={`stage-captions${captionText ? ' is-visible' : ''}`}>
+          <p>{captionText}</p>
+        </div>
+      ) : null}
     </section>
   )
 }
