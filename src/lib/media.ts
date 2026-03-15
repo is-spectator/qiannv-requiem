@@ -16,23 +16,33 @@ const routeNames = {
 }
 
 function inferType(src: string) {
-  if (src.endsWith('.mp4')) {
+  let pathname = src
+
+  try {
+    pathname = new URL(src, 'https://preview.local').pathname
+  } catch {
+    pathname = src
+  }
+
+  const normalized = pathname.toLowerCase()
+
+  if (normalized.endsWith('.mp4')) {
     return 'video/mp4'
   }
 
-  if (src.endsWith('.webm')) {
+  if (normalized.endsWith('.webm')) {
     return 'video/webm'
   }
 
-  if (src.endsWith('.mp3')) {
+  if (normalized.endsWith('.mp3')) {
     return 'audio/mpeg'
   }
 
-  if (src.endsWith('.ogg')) {
+  if (normalized.endsWith('.ogg')) {
     return 'audio/ogg'
   }
 
-  if (src.endsWith('.wav')) {
+  if (normalized.endsWith('.wav')) {
     return 'audio/wav'
   }
 

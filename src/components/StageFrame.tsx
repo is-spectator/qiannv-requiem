@@ -1,15 +1,28 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import type { Settings, StoryScene } from '../story/types'
+import type { MediaSource, Settings, StoryScene, SubtitleTrack } from '../story/types'
 
 type StageFrameProps = {
+  mediaOverride?: MediaSource[]
+  previewLabel?: string | null
   scene: StoryScene
   settings: Settings
+  subtitleOverride?: SubtitleTrack[]
 }
 
-export function StageFrame({ scene, settings }: StageFrameProps) {
+export function StageFrame({
+  mediaOverride,
+  previewLabel,
+  scene,
+  settings,
+  subtitleOverride,
+}: StageFrameProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const stageMedia = mediaOverride?.length ? mediaOverride : scene.stage.media
+  const stageSubtitles = subtitleOverride ?? scene.stage.subtitles
+  const mediaSignature = stageMedia.map((source) => source.src).join('|')
+  const videoKey = `${scene.id}:${mediaSignature || 'fallback'}`
   const [ready, setReady] = useState(false)
-  const [failed, setFailed] = useState(scene.stage.media.length === 0)
+  const [failed, setFailed] = useState(stageMedia.length === 0)
   const [manualPlayback, setManualPlayback] = useState<boolean | null>(null)
   const [captionText, setCaptionText] = useState('')
   const shouldPlay = manualPlayback ?? settings.autoplay
@@ -93,33 +106,34 @@ export function StageFrame({ scene, settings }: StageFrameProps) {
       }
     >
       <div className={`stage-canvas${settings.reduceMotion ? ' is-reduced' : ''}`}>
-        {scene.stage.media.length > 0 ? (
+        {stageMedia.length > 0 ? (
           <video
+            key={videoKey}
             ref={videoRef}
             className={`stage-video${ready && !failed ? ' is-visible' : ''}`}
             preload="auto"
             loop
             playsInline
-          autoPlay={settings.autoplay}
-          muted={false}
-          onLoadedData={() => setReady(true)}
-          onError={() => setFailed(true)}
-        >
-          {scene.stage.media.map((source) => (
-            <source key={source.src} src={source.src} type={source.type} />
-          ))}
-          {scene.stage.subtitles.map((track) => (
-            <track
-              key={track.src}
-              default={track.default}
-              kind="subtitles"
-              label={track.label}
-              src={track.src}
-              srcLang={track.srclang}
-            />
-          ))}
-        </video>
-      ) : null}
+            autoPlay={settings.autoplay}
+            muted={false}
+            onLoadedData={() => setReady(true)}
+            onError={() => setFailed(true)}
+          >
+            {stageMedia.map((source) => (
+              <source key={source.src} src={source.src} type={source.type} />
+            ))}
+            {stageSubtitles.map((track) => (
+              <track
+                key={track.src}
+                default={track.default}
+                kind="subtitles"
+                label={track.label}
+                src={track.src}
+                srcLang={track.srclang}
+              />
+            ))}
+          </video>
+        ) : null}
 
         <div className={`stage-fallback${failed ? ' is-visible' : ''}`}>
           <div className="stage-aura" />
@@ -136,6 +150,7 @@ export function StageFrame({ scene, settings }: StageFrameProps) {
           <span>{scene.act}</span>
           <span>{scene.location}</span>
           <span>{scene.time}</span>
+          {previewLabel ? <span className="media-note is-preview">{previewLabel}</span> : null}
         </div>
         <div className="stage-footer-row">
           <div>
@@ -154,7 +169,9 @@ export function StageFrame({ scene, settings }: StageFrameProps) {
                 {shouldPlay ? '静映' : '播放'}
               </button>
             ) : (
-              <span className="media-note">等待正式视频素材</span>
+              <span className="media-note">
+                {stageMedia.length > 0 ? '视频加载失败，已回退到舞台占位' : '等待正式视频素材'}
+              </span>
             )}
           </div>
         </div>

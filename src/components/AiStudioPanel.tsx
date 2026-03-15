@@ -22,6 +22,9 @@ import type { StoryScene } from '../story/types'
 
 type AiStudioPanelProps = {
   currentSceneId?: string
+  onClearPreview: (sceneId: string) => void
+  onUsePreview: (job: JimengJobRecord) => void
+  previewVideoBySceneId: Record<string, string | undefined>
   scenes: StoryScene[]
 }
 
@@ -74,7 +77,13 @@ function trimJobs(jobs: JimengJobRecord[]) {
   return jobs.slice(0, 12)
 }
 
-export function AiStudioPanel({ currentSceneId, scenes }: AiStudioPanelProps) {
+export function AiStudioPanel({
+  currentSceneId,
+  onClearPreview,
+  onUsePreview,
+  previewVideoBySceneId,
+  scenes,
+}: AiStudioPanelProps) {
   const [config, setConfig] = useState<JimengConfig | null>(null)
   const [configMessage, setConfigMessage] = useState('读取本地代理配置中...')
   const [selectedSceneId, setSelectedSceneId] = useState(currentSceneId ?? scenes[0]?.id ?? '')
@@ -155,6 +164,12 @@ export function AiStudioPanel({ currentSceneId, scenes }: AiStudioPanelProps) {
     })
   }
 
+  function syncPreview(job: JimengJobRecord) {
+    if (job.videoUrl && job.sceneId === currentSceneId) {
+      onUsePreview(job)
+    }
+  }
+
   function applyResponseToJob(job: JimengJobRecord, response: JimengProxyResponse) {
     return {
       ...job,
@@ -180,12 +195,14 @@ export function AiStudioPanel({ currentSceneId, scenes }: AiStudioPanelProps) {
         taskId: job.taskId,
         reqJson: job.reqJsonText || undefined,
       })
+      const nextJob = applyResponseToJob(job, response)
 
       updateJobs((current) =>
         current.map((candidate) =>
-          candidate.id === job.id ? applyResponseToJob(candidate, response) : candidate,
+          candidate.id === job.id ? nextJob : candidate,
         ),
       )
+      syncPreview(nextJob)
 
       const phase = resolvePhase(response)
 
@@ -291,6 +308,7 @@ export function AiStudioPanel({ currentSceneId, scenes }: AiStudioPanelProps) {
       updateJobs((current) =>
         current.map((candidate) => (candidate.id === draftJob.id ? nextJob : candidate)),
       )
+      syncPreview(nextJob)
 
       if (nextJob.taskId) {
         setActiveTaskId(nextJob.taskId)
@@ -501,6 +519,9 @@ export function AiStudioPanel({ currentSceneId, scenes }: AiStudioPanelProps) {
                     {jobStatusLabel(job)}
                   </span>
                 </div>
+                {previewVideoBySceneId[job.sceneId] === job.videoUrl && job.videoUrl ? (
+                  <p className="studio-job-preview">当前已挂到该镜头舞台预览</p>
+                ) : null}
                 <p className="studio-job-prompt">{job.prompt || '未填写 prompt'}</p>
                 <div className="studio-job-meta">
                   <span>{job.aspectRatio}</span>
@@ -520,6 +541,25 @@ export function AiStudioPanel({ currentSceneId, scenes }: AiStudioPanelProps) {
                   >
                     刷新状态
                   </button>
+                  {job.videoUrl ? (
+                    <button
+                      type="button"
+                      className={
+                        previewVideoBySceneId[job.sceneId] === job.videoUrl
+                          ? 'primary-button'
+                          : 'secondary-button'
+                      }
+                      onClick={() =>
+                        previewVideoBySceneId[job.sceneId] === job.videoUrl
+                          ? onClearPreview(job.sceneId)
+                          : onUsePreview(job)
+                      }
+                    >
+                      {previewVideoBySceneId[job.sceneId] === job.videoUrl
+                        ? '取消舞台预览'
+                        : '设为舞台预览'}
+                    </button>
+                  ) : null}
                   {job.videoUrl ? (
                     <a
                       className="secondary-button studio-link-button"

@@ -598,6 +598,12 @@
   backdrop-filter: blur(10px);
 }
 
+.media-note.is-preview {
+  color: #f7e7b7;
+  border-color: rgba(223, 199, 116, 0.32);
+  background: rgba(48, 34, 8, 0.44);
+}
+
 .stage-footer-row {
   display: flex;
   justify-content: space-between;
@@ -940,10 +946,15 @@
 
 .studio-note,
 .studio-scene-brief,
+.studio-job-preview,
 .studio-job-prompt,
 .studio-job-meta {
   margin: 0;
   color: rgba(241, 239, 232, 0.76);
+}
+
+.studio-job-preview {
+  color: #f1dfa6;
 }
 
 .studio-scene-brief,

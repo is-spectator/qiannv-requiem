@@ -31,6 +31,14 @@ export type JimengJobRecord = {
   videoUrl: string | null
 }
 
+export type JimengPreviewRecord = {
+  appliedAt: string
+  sceneId: string
+  sceneTitle: string
+  taskId: string | null
+  videoUrl: string
+}
+
 export const aspectRatioOptions: JimengAspectRatio[] = [
   '16:9',
   '4:3',
@@ -46,6 +54,7 @@ export const frameOptions = [
 ]
 
 const STORAGE_KEY = 'qiannv-requiem/jimeng-jobs'
+const PREVIEW_STORAGE_KEY = 'qiannv-requiem/jimeng-preview-map'
 
 export function buildScenePrompt(scene: StoryScene) {
   const paragraphs = scene.summary.join(' ')
@@ -94,6 +103,49 @@ export function persistJimengJobs(jobs: JimengJobRecord[]) {
   }
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs.slice(0, 12)))
+}
+
+export function loadJimengPreviewMap() {
+  if (typeof window === 'undefined') {
+    return {} as Record<string, JimengPreviewRecord>
+  }
+
+  try {
+    const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY)
+
+    if (!raw) {
+      return {} as Record<string, JimengPreviewRecord>
+    }
+
+    const previewMap = JSON.parse(raw)
+
+    if (!previewMap || typeof previewMap !== 'object' || Array.isArray(previewMap)) {
+      return {} as Record<string, JimengPreviewRecord>
+    }
+
+    return Object.fromEntries(
+      Object.entries(previewMap).filter((entry): entry is [string, JimengPreviewRecord] => {
+        const value = entry[1] as Partial<JimengPreviewRecord> | null
+
+        return Boolean(
+          value &&
+            typeof value === 'object' &&
+            typeof value.sceneId === 'string' &&
+            typeof value.videoUrl === 'string',
+        )
+      }),
+    )
+  } catch {
+    return {} as Record<string, JimengPreviewRecord>
+  }
+}
+
+export function persistJimengPreviewMap(previewMap: Record<string, JimengPreviewRecord>) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(previewMap))
 }
 
 export function jobStatusLabel(job: Pick<JimengJobRecord, 'status' | 'videoUrl' | 'code'>) {

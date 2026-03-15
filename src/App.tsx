@@ -11,6 +11,11 @@ import './App.css'
 import { AiStudioPanel } from './components/AiStudioPanel'
 import { StageFrame } from './components/StageFrame'
 import {
+  loadJimengPreviewMap,
+  persistJimengPreviewMap,
+  type JimengJobRecord,
+} from './lib/jimeng-studio'
+import {
   endingLibrary,
   heroineShowcase,
   radiantEndingIds,
@@ -36,7 +41,7 @@ import {
   persistState,
   saveIntoSlot,
 } from './lib/game-state'
-import { getSceneSoundtrack, pickPlayableSource, soundEffects } from './lib/media'
+import { getSceneSoundtrack, mediaSource, pickPlayableSource, soundEffects } from './lib/media'
 import type {
   HeroineId,
   PersistedState,
@@ -66,6 +71,7 @@ function prettyTime(value?: string) {
 
 function App() {
   const [state, setState] = useState<PersistedState>(() => loadState())
+  const [previewMap, setPreviewMap] = useState(() => loadJimengPreviewMap())
   const [showTitle, setShowTitle] = useState(true)
   const [drawer, setDrawer] = useState<
     'archive' | 'saves' | 'settings' | 'studio' | null
@@ -76,6 +82,7 @@ function App() {
 
   const snapshot = state.active
   const scene = snapshot ? storyScenes[snapshot.sceneId] : null
+  const activePreview = scene ? previewMap[scene.id] : null
   const soundtrack = scene ? getSceneSoundtrack(scene) : null
   const currentRoute = scene?.route ?? 'common'
   const accent = routeAccent[currentRoute]
@@ -91,6 +98,10 @@ function App() {
   useEffect(() => {
     persistState(state)
   }, [state])
+
+  useEffect(() => {
+    persistJimengPreviewMap(previewMap)
+  }, [previewMap])
 
   useEffect(() => {
     if (!toast) {
@@ -246,10 +257,51 @@ function App() {
     playEffect('error')
     startTransition(() => {
       setState(createPersistedState())
+      setPreviewMap({})
       setShowTitle(true)
       setDrawer(null)
     })
     setToast('所有本地进度已清空。')
+  }
+
+  function applyPreview(job: JimengJobRecord) {
+    if (!job.videoUrl) {
+      return
+    }
+
+    const videoUrl = job.videoUrl
+
+    setPreviewMap((current) => ({
+      ...current,
+      [job.sceneId]: {
+        appliedAt: new Date().toISOString(),
+        sceneId: job.sceneId,
+        sceneTitle: job.sceneTitle,
+        taskId: job.taskId,
+        videoUrl,
+      },
+    }))
+
+    setToast(
+      scene?.id === job.sceneId
+        ? 'AI 视频已接到当前舞台，可直接播放预览。'
+        : `已为「${job.sceneTitle}」挂载 AI 预览，切到该镜头即可查看。`,
+    )
+  }
+
+  function clearPreview(sceneId: string) {
+    const preview = previewMap[sceneId]
+
+    if (!preview) {
+      return
+    }
+
+    setPreviewMap((current) => {
+      const next = { ...current }
+      delete next[sceneId]
+      return next
+    })
+    setToast(`已移除「${preview.sceneTitle}」的 AI 舞台预览。`)
   }
 
   function choose(choice: StoryChoice) {
@@ -524,7 +576,14 @@ function App() {
               </div>
             </div>
 
-            <StageFrame key={scene.id} scene={scene} settings={state.settings} />
+            <StageFrame
+              key={`${scene.id}:${activePreview?.videoUrl ?? 'default'}`}
+              mediaOverride={activePreview ? [mediaSource(activePreview.videoUrl)] : undefined}
+              previewLabel={activePreview ? 'AI 临时预览' : null}
+              scene={scene}
+              settings={state.settings}
+              subtitleOverride={activePreview ? [] : undefined}
+            />
 
             <article className="dialogue-panel">
               <div className="dialogue-head">
@@ -628,18 +687,32 @@ function App() {
                 </div>
                 <div className="media-row">
                   <span>视频源</span>
-                  <strong>{scene.stage.media.length > 0 ? '已配置路径' : '未配置'}</strong>
+                  <strong>
+                    {activePreview
+                      ? '即梦生成视频已接入'
+                      : scene.stage.media.length > 0
+                        ? '已配置路径'
+                        : '未配置'}
+                  </strong>
                 </div>
                 <div className="media-row">
                   <span>字幕轨</span>
                   <strong>
-                    {scene.stage.subtitles.length > 0
+                    {activePreview
+                      ? '当前使用 AI 预览，无独立字幕轨'
+                      : scene.stage.subtitles.length > 0
                       ? state.settings.subtitles
                         ? 'VTT 已启用'
                         : 'VTT 已配置路径'
                       : '未配置'}
                   </strong>
                 </div>
+                {activePreview ? (
+                  <div className="media-row">
+                    <span>预览状态</span>
+                    <strong>AI 临时片段，刷新或过期后可重新挂载</strong>
+                  </div>
+                ) : null}
               </div>
             </section>
           </aside>
@@ -958,7 +1031,18 @@ function App() {
                     关闭
                   </button>
                 </div>
-                <AiStudioPanel currentSceneId={scene?.id} scenes={aiSceneOptions} />
+                <AiStudioPanel
+                  currentSceneId={scene?.id}
+                  onClearPreview={clearPreview}
+                  onUsePreview={applyPreview}
+                  previewVideoBySceneId={Object.fromEntries(
+                    Object.entries(previewMap).map(([sceneId, preview]) => [
+                      sceneId,
+                      preview.videoUrl,
+                    ]),
+                  )}
+                  scenes={aiSceneOptions}
+                />
               </>
             ) : null}
           </aside>
