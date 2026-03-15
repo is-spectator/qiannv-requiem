@@ -10,6 +10,7 @@ import {
 import './App.css'
 import { AiStudioPanel } from './components/AiStudioPanel'
 import { StageFrame } from './components/StageFrame'
+import { buildJimengMediaProxyUrl } from './lib/jimeng-client'
 import {
   loadJimengPreviewMap,
   persistJimengPreviewMap,
@@ -83,6 +84,15 @@ function App() {
   const snapshot = state.active
   const scene = snapshot ? storyScenes[snapshot.sceneId] : null
   const activePreview = scene ? previewMap[scene.id] : null
+  const activePreviewSrc = activePreview
+    ? activePreview.taskId
+      ? buildJimengMediaProxyUrl(
+          activePreview.taskId,
+          activePreview.reqJsonText,
+          activePreview.appliedAt,
+        )
+      : activePreview.videoUrl
+    : null
   const soundtrack = scene ? getSceneSoundtrack(scene) : null
   const currentRoute = scene?.route ?? 'common'
   const accent = routeAccent[currentRoute]
@@ -278,6 +288,7 @@ function App() {
         sceneId: job.sceneId,
         sceneTitle: job.sceneTitle,
         taskId: job.taskId,
+        reqJsonText: job.reqJsonText || undefined,
         videoUrl,
       },
     }))
@@ -577,8 +588,8 @@ function App() {
             </div>
 
             <StageFrame
-              key={`${scene.id}:${activePreview?.videoUrl ?? 'default'}`}
-              mediaOverride={activePreview ? [mediaSource(activePreview.videoUrl)] : undefined}
+              key={`${scene.id}:${activePreviewSrc ?? 'default'}`}
+              mediaOverride={activePreviewSrc ? [mediaSource(activePreviewSrc)] : undefined}
               previewLabel={activePreview ? 'AI 临时预览' : null}
               scene={scene}
               settings={state.settings}

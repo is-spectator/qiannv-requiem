@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useEffectEvent, useState } from 'react'
 import {
+  buildJimengMediaProxyUrl,
   fetchJimengConfig,
   queryJimengTask,
   submitJimengTask,
@@ -563,7 +564,11 @@ export function AiStudioPanel({
                   {job.videoUrl ? (
                     <a
                       className="secondary-button studio-link-button"
-                      href={job.videoUrl}
+                      href={
+                        job.taskId
+                          ? buildJimengMediaProxyUrl(job.taskId, job.reqJsonText, job.updatedAt)
+                          : job.videoUrl
+                      }
                       target="_blank"
                       rel="noreferrer"
                     >

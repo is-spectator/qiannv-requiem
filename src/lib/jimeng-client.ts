@@ -111,3 +111,19 @@ export function queryJimengTask(payload: JimengResultPayload) {
     body: JSON.stringify(payload),
   })
 }
+
+export function buildJimengMediaProxyUrl(taskId: string, reqJson?: string, stamp?: string) {
+  const params = new URLSearchParams({
+    taskId,
+  })
+
+  if (reqJson?.trim()) {
+    params.set('reqJson', reqJson.trim())
+  }
+
+  if (stamp) {
+    params.set('ts', stamp)
+  }
+
+  return `${apiBase}/media?${params.toString()}`
+}

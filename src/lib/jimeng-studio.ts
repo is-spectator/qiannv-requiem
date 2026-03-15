@@ -33,6 +33,7 @@ export type JimengJobRecord = {
 
 export type JimengPreviewRecord = {
   appliedAt: string
+  reqJsonText?: string
   sceneId: string
   sceneTitle: string
   taskId: string | null

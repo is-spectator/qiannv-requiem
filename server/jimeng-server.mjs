@@ -1,4 +1,6 @@
 import http from 'node:http'
+import { pipeline } from 'node:stream/promises'
+import { Readable } from 'node:stream'
 import { URL } from 'node:url'
 import { Signer } from '@volcengine/openapi'
 
@@ -42,6 +44,14 @@ function sendJson(response, statusCode, payload) {
     'content-type': 'application/json; charset=utf-8',
   })
   response.end(JSON.stringify(payload))
+}
+
+function sendStreamHeaders(response, statusCode, headers = {}) {
+  response.writeHead(statusCode, {
+    ...corsHeaders(),
+    'cache-control': 'no-store',
+    ...headers,
+  })
 }
 
 function isConfigured() {
@@ -228,6 +238,110 @@ async function callVisual(action, payload) {
   }
 }
 
+function trimQueryValue(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return value.trim()
+}
+
+function pickForwardHeaders(headers) {
+  const forwarded = {}
+
+  for (const name of ['range', 'if-none-match', 'if-modified-since']) {
+    const value = headers[name]
+
+    if (typeof value === 'string' && value.trim()) {
+      forwarded[name] = value
+    }
+  }
+
+  return forwarded
+}
+
+function copyMediaHeaders(sourceHeaders) {
+  const nextHeaders = {}
+
+  for (const name of [
+    'accept-ranges',
+    'content-disposition',
+    'content-length',
+    'content-range',
+    'content-type',
+    'etag',
+    'last-modified',
+  ]) {
+    const value = sourceHeaders.get(name)
+
+    if (value) {
+      nextHeaders[name] = value
+    }
+  }
+
+  return nextHeaders
+}
+
+async function streamTaskMedia(request, response, requestUrl) {
+  const taskId = trimQueryValue(requestUrl.searchParams.get('taskId'))
+  const reqJson = trimQueryValue(requestUrl.searchParams.get('reqJson'))
+
+  if (!taskId) {
+    sendJson(response, 400, {
+      error: 'jimeng_task_id_missing',
+      message: '播放代理需要 taskId。',
+    })
+    return
+  }
+
+  const resultBody = createResultBody({
+    taskId,
+    reqJson: reqJson || undefined,
+  })
+  const taskResult = normalizeUpstream(
+    'result',
+    await callVisual(RESULT_ACTION, resultBody),
+    resultBody,
+  )
+
+  if (!taskResult.normalized.videoUrl) {
+    sendJson(response, 404, {
+      error: 'jimeng_video_url_missing',
+      message: taskResult.normalized.message || '当前任务还没有可播放的视频地址。',
+      taskId,
+    })
+    return
+  }
+
+  const upstreamResponse = await fetch(taskResult.normalized.videoUrl, {
+    method: request.method === 'HEAD' ? 'HEAD' : 'GET',
+    headers: pickForwardHeaders(request.headers),
+  })
+
+  if (!upstreamResponse.ok && upstreamResponse.status !== 206 && upstreamResponse.status !== 304) {
+    sendJson(response, upstreamResponse.status, {
+      error: 'jimeng_media_fetch_failed',
+      message: '即梦媒体地址暂时不可访问，请稍后重试或重新刷新任务状态。',
+      taskId,
+      status: upstreamResponse.status,
+      videoUrl: taskResult.normalized.videoUrl,
+    })
+    return
+  }
+
+  sendStreamHeaders(response, upstreamResponse.status, {
+    ...copyMediaHeaders(upstreamResponse.headers),
+    'x-jimeng-task-id': taskId,
+  })
+
+  if (request.method === 'HEAD' || !upstreamResponse.body) {
+    response.end()
+    return
+  }
+
+  await pipeline(Readable.fromWeb(upstreamResponse.body), response)
+}
+
 function normalizeUpstream(action, upstream, requestBody) {
   const payload =
     upstream.payload && typeof upstream.payload === 'object' ? upstream.payload : {}
@@ -296,6 +410,19 @@ const server = http.createServer(async (request, response) => {
   }
 
   try {
+    if (requestUrl.pathname === '/api/jimeng/media') {
+      if (request.method === 'GET' || request.method === 'HEAD') {
+        await streamTaskMedia(request, response, requestUrl)
+        return
+      }
+
+      sendJson(response, 405, {
+        error: 'method_not_allowed',
+        message: '媒体代理仅支持 GET / HEAD。',
+      })
+      return
+    }
+
     if (requestUrl.pathname === '/api/jimeng/submit' && request.method === 'POST') {
       const payload = await readJson(request)
       const body = createSubmitBody(payload)
