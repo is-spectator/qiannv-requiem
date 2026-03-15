@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from 'react'
 import './App.css'
+import { AiStudioPanel } from './components/AiStudioPanel'
 import { StageFrame } from './components/StageFrame'
 import {
   endingLibrary,
@@ -44,6 +45,10 @@ import type {
   StoryChoice,
 } from './story/types'
 
+const aiSceneOptions = Object.values(storyScenes).filter(
+  (candidate) => !candidate.isEnding,
+)
+
 const formatter = new Intl.DateTimeFormat('zh-CN', {
   month: '2-digit',
   day: '2-digit',
@@ -62,9 +67,9 @@ function prettyTime(value?: string) {
 function App() {
   const [state, setState] = useState<PersistedState>(() => loadState())
   const [showTitle, setShowTitle] = useState(true)
-  const [drawer, setDrawer] = useState<'archive' | 'saves' | 'settings' | null>(
-    null,
-  )
+  const [drawer, setDrawer] = useState<
+    'archive' | 'saves' | 'settings' | 'studio' | null
+  >(null)
   const [previewRoute, setPreviewRoute] = useState<HeroineId>('xiaoqian')
   const [toast, setToast] = useState<string | null>(null)
   const bgmRef = useRef<HTMLAudioElement | null>(null)
@@ -345,6 +350,9 @@ function App() {
           </button>
           <button type="button" className="ghost-button" onClick={() => setDrawer('saves')}>
             存档
+          </button>
+          <button type="button" className="ghost-button" onClick={() => setDrawer('studio')}>
+            AI 工坊
           </button>
           <button
             type="button"
@@ -936,6 +944,21 @@ function App() {
                     清空全部进度
                   </button>
                 </section>
+              </>
+            ) : null}
+
+            {drawer === 'studio' ? (
+              <>
+                <div className="drawer-head">
+                  <div>
+                    <p className="eyebrow">即梦 API</p>
+                    <h2>AI 视频工坊</h2>
+                  </div>
+                  <button type="button" className="ghost-button" onClick={() => setDrawer(null)}>
+                    关闭
+                  </button>
+                </div>
+                <AiStudioPanel currentSceneId={scene?.id} scenes={aiSceneOptions} />
               </>
             ) : null}
           </aside>

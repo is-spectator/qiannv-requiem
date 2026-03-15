@@ -5,4 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: './',
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api/jimeng': 'http://127.0.0.1:8787',
+    },
+  },
+  preview: {
+    proxy: {
+      '/api/jimeng': 'http://127.0.0.1:8787',
+    },
+  },
 })

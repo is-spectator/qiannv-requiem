@@ -883,6 +883,134 @@
   margin-top: 18px;
 }
 
+.studio-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.studio-card,
+.studio-job-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.studio-field {
+  display: grid;
+  gap: 8px;
+}
+
+.studio-grid,
+.studio-inline,
+.studio-job-list,
+.studio-job-meta {
+  display: grid;
+  gap: 12px;
+}
+
+.studio-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.studio-inline {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.studio-select,
+.studio-input,
+.studio-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  color: inherit;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 9, 12, 0.55);
+}
+
+.studio-textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.studio-textarea-compact {
+  min-height: 84px;
+}
+
+.studio-note,
+.studio-scene-brief,
+.studio-job-prompt,
+.studio-job-meta {
+  margin: 0;
+  color: rgba(241, 239, 232, 0.76);
+}
+
+.studio-scene-brief,
+.studio-job-meta {
+  display: grid;
+  gap: 6px;
+  font-size: 0.93rem;
+}
+
+.studio-job-list {
+  grid-template-columns: 1fr;
+}
+
+.studio-job-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.studio-job-head p {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  color: rgba(241, 239, 232, 0.62);
+}
+
+.studio-job-prompt {
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.studio-status {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+}
+
+.studio-status.is-success {
+  color: #15150d;
+  background: #dfc774;
+}
+
+.studio-status.is-progress {
+  color: #f5f0df;
+  background: rgba(102, 145, 232, 0.24);
+  border-color: rgba(144, 180, 255, 0.35);
+}
+
+.studio-status.is-danger {
+  color: #ffd8d2;
+  background: rgba(168, 69, 53, 0.28);
+  border-color: rgba(194, 98, 81, 0.38);
+}
+
+.studio-status.is-idle {
+  color: rgba(241, 239, 232, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.studio-link-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -928,7 +1056,8 @@
   .archive-grid,
   .archive-grid.full,
   .choice-grid,
-  .metrics-grid {
+  .metrics-grid,
+  .studio-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -950,7 +1079,9 @@
 
   .topbar-actions,
   .hint-list,
-  .scene-meta {
+  .scene-meta,
+  .studio-inline,
+  .studio-job-head {
     justify-content: flex-start;
     text-align: left;
   }
