@@ -29,6 +29,30 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function createJobId() {
+  const cryptoObject = globalThis.crypto
+
+  if (cryptoObject?.randomUUID) {
+    return cryptoObject.randomUUID()
+  }
+
+  if (cryptoObject?.getRandomValues) {
+    const bytes = new Uint8Array(16)
+    cryptoObject.getRandomValues(bytes)
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+
+    return [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      hex.slice(12, 16),
+      hex.slice(16, 20),
+      hex.slice(20, 32),
+    ].join('-')
+  }
+
+  return `job-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`
+}
+
 function resolvePhase(response: JimengProxyResponse): JimengJobPhase {
   if (!response.ok && response.normalized.status === 'done') {
     return 'done'
@@ -231,7 +255,7 @@ export function AiStudioPanel({ currentSceneId, scenes }: AiStudioPanelProps) {
     setBusyLabel('提交即梦视频任务中...')
 
     const draftJob: JimengJobRecord = {
-      id: crypto.randomUUID(),
+      id: createJobId(),
       sceneId: selectedScene.id,
       sceneTitle: selectedScene.title,
       prompt: prompt.trim(),
